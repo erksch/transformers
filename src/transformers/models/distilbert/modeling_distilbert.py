@@ -319,11 +319,13 @@ class Transformer(nn.Module):
         if output_hidden_states:
             all_hidden_states = all_hidden_states + (hidden_state,)
 
-        if not return_dict:
-            return tuple(v for v in [hidden_state, all_hidden_states, all_attentions] if v is not None)
-        return BaseModelOutput(
-            last_hidden_state=hidden_state, hidden_states=all_hidden_states, attentions=all_attentions
-        )
+        return hidden_state
+
+        #if not return_dict:
+        #    return tuple(v for v in [hidden_state, all_hidden_states, all_attentions] if v is not None)
+        #return BaseModelOutput(
+        #    last_hidden_state=hidden_state, hidden_states=all_hidden_states, attentions=all_attentions
+        #)
 
 
 # INTERFACE FOR ENCODER AND TASK SPECIFIC MODEL #
@@ -546,26 +548,13 @@ class DistilBertForMaskedLM(DistilBertPreTrainedModel):
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
         )
-        hidden_states = dlbrt_output[0]  # (bs, seq_length, dim)
+        hidden_states = dlbrt_output  # (bs, seq_length, dim)
         prediction_logits = self.vocab_transform(hidden_states)  # (bs, seq_length, dim)
         prediction_logits = gelu(prediction_logits)  # (bs, seq_length, dim)
         prediction_logits = self.vocab_layer_norm(prediction_logits)  # (bs, seq_length, dim)
         prediction_logits = self.vocab_projector(prediction_logits)  # (bs, seq_length, vocab_size)
 
-        mlm_loss = None
-        if labels is not None:
-            mlm_loss = self.mlm_loss_fct(prediction_logits.view(-1, prediction_logits.size(-1)), labels.view(-1))
-
-        if not return_dict:
-            output = (prediction_logits,) + dlbrt_output[1:]
-            return ((mlm_loss,) + output) if mlm_loss is not None else output
-
-        return MaskedLMOutput(
-            loss=mlm_loss,
-            logits=prediction_logits,
-            hidden_states=dlbrt_output.hidden_states,
-            attentions=dlbrt_output.attentions,
-        )
+        return prediction_logits
 
 
 @add_start_docstrings(
